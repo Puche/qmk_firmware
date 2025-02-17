@@ -16,44 +16,42 @@
 
 #include QMK_KEYBOARD_H
 
-
-enum orbweaver_layers {
-  _DEFAULT,
-  _LETTERS,
-  _CONTROL
-};
+// Time to hold ESC (for change layer) in miliseconds, by default 1000 -> 1 sec
+#define ESC_HOLD_TIME 1000 
+// Key to perform layer change, please, be sure the key is present in all Layers, or you cannot change Layer.
+#define MACRO_KEY_LAYER_CHANGE KC_ESC
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 //generic default keymap with Razor defaults (+ 20 shifts layer)
 
-     [_DEFAULT] = LAYOUT(
+     [0] = LAYOUT(
         KC_ESC, KC_1, KC_2, KC_3, KC_4,
         KC_TAB, KC_Q, KC_W, KC_E, KC_R,
-        KC_CAPS, KC_A, KC_S, KC_D, KC_F,
-        KC_LSFT, KC_Z, KC_X, KC_C, TO(1),
-        KC_LALT, KC_UP, KC_DOWN, KC_RIGHT, KC_LEFT,
+        KC_LSFT, KC_A, KC_S, KC_D, KC_F,
+        KC_LCTL, KC_Z, KC_X, KC_C, KC_V,
+        KC_LALT, KC_LEFT, KC_RIGHT, KC_DOWN, KC_UP,
         KC_SPACE
     ),
 
 //Second example keymap with all modifier keys replaced with numbers or letters
      
-   [_LETTERS] = LAYOUT(
-        KC_0, KC_1, KC_2, KC_3, KC_4,
+   [1] = LAYOUT(
+        KC_ESC, KC_1, KC_2, KC_3, KC_4,
         KC_I, KC_Q, KC_W, KC_E, KC_R,
         KC_J, KC_A, KC_S, KC_D, KC_F,
-        KC_K, KC_Z, KC_X, KC_C, TO(2),
-        KC_L, KC_UP, KC_DOWN, KC_RIGHT, KC_LEFT,
+        KC_K, KC_Z, KC_X, KC_C, KC_V,
+        KC_L, KC_LEFT, KC_RIGHT, KC_DOWN, KC_UP,
         KC_SPACE
     ),
 
 //, RGB Contol Keymap
-   [_CONTROL] = LAYOUT(
-        RM_NEXT, RM_HUEU, RM_SATU, RM_VALU, RM_SPDU,
-        RM_PREV, RM_HUED, RM_SATD, RM_VALD, RM_SPDD,
-        RM_TOGG, KC_A, KC_S, KC_D, KC_F,
-        KC_K, KC_Z, KC_X, KC_C, TO(0),
-        KC_L, KC_UP, KC_DOWN, KC_RIGHT, KC_LEFT,
+   [2] = LAYOUT(
+        KC_ESC, RM_SATU, RM_SATD, RM_TOGG, KC_4,
+        KC_TAB, RM_SPDD, RM_NEXT, RM_SPDU, RM_HUEU,
+        KC_LSFT, RM_VALD, RM_PREV, RM_VALU, RM_HUED,
+        KC_LCTL, KC_Z, KC_X, KC_C, KC_V,
+        KC_LALT, KC_LEFT, KC_RIGHT, KC_DOWN, KC_UP,
         KC_SPACE
     ) 
 
@@ -87,4 +85,38 @@ void suspend_power_down_kb(void) {
 void suspend_wakeup_init_kb(void) {
     layer_state_set_kb(layer_state);
     suspend_wakeup_init_user();
+}
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    static uint16_t esc_hold_timer = 0;
+    static bool esc_held = false; 
+
+    if (keycode == MACRO_KEY_LAYER_CHANGE) {
+        if (record->event.pressed) {
+            esc_hold_timer = timer_read();  
+            esc_held = false;  
+        } else {
+            uint16_t held_time = timer_elapsed(esc_hold_timer);  
+
+            if (held_time >= ESC_HOLD_TIME) {
+                switch (get_highest_layer(layer_state)) {
+                    case 0:
+                        layer_move(1);
+                        break;
+                    case 1:
+                        layer_move(2);
+                        break;
+                    case 2:
+                        layer_move(0);
+                        break;
+                }
+                esc_held = true; 
+            }
+            if (!esc_held) {
+                tap_code(KC_ESC);  
+            }
+        }
+        return false;  
+    }
+    return true;
 }
